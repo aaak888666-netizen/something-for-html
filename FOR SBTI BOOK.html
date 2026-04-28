@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内在探索文库 - 专属阅读器</title>
+    <style>
+        /* 极简高级阅读排版 */
+        :root {
+            --bg-color: #F9F9F7;
+            --sidebar-bg: #F0F0EE;
+            --text-main: #2C2C2C;
+            --text-light: #888888;
+            --accent-color: #A04000; /* 沉稳的阅读红/棕色 */
+            --border-color: #E2E2DF;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Palatino Linotype', 'Book Antiqua', 'PingFang SC', 'Songti SC', serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+        /* --- 导入界面 --- */
+        #import-screen {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: #fff;
+            z-index: 100;
+        }
+        .import-box {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        .import-box h1 { font-family: sans-serif; font-size: 2.2rem; color: #333; margin-bottom: 15px; }
+        .import-box p { color: #666; margin-bottom: 30px; font-family: sans-serif; }
+        textarea {
+            width: 100%;
+            height: 400px;
+            padding: 20px;
+            font-size: 1rem;
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            resize: none;
+            outline: none;
+            background: #fafafa;
+            margin-bottom: 20px;
+            font-family: monospace;
+            line-height: 1.5;
+        }
+        textarea:focus { border-color: var(--accent-color); background: #fff; }
+        .btn-import {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-family: sans-serif;
+            font-weight: bold;
+        }
+        .btn-import:hover { background: #803300; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(160,64,0,0.2); }
+
+        /* --- 阅读器界面 --- */
+        #reader-screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 左侧书架 */
+        .sidebar {
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .site-title {
+            padding: 40px 30px 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: sans-serif;
+            color: var(--accent-color);
+            letter-spacing: 2px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        #book-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        .menu-item {
+            padding: 15px 30px;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-size: 1rem;
+            color: #555;
+            border-left: 4px solid transparent;
+            transition: all 0.2s;
+        }
+        .menu-item:hover { background-color: #E8E8E5; color: #000; }
+        .menu-item.active { background-color: var(--bg-color); border-left-color: var(--accent-color); color: var(--accent-color); font-weight: bold; }
+        
+        .reset-btn {
+            padding: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            cursor: pointer;
+            border-top: 1px solid var(--border-color);
+            font-family: sans-serif;
+        }
+        .reset-btn:hover { color: #d93025; }
+
+        /* 右侧正文 */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 60px;
+            scroll-behavior: smooth;
+        }
+        .book-container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        .book-title {
+            font-size: 2.8rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 60px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--border-color);
+            color: #111;
+        }
+        
+        .chapter-container { margin-bottom: 80px; }
+        .chapter-title {
+            font-size: 2rem;
+            color: var(--accent-color);
+            margin: 60px 0 40px;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+        .section-title {
+            font-size: 1.4rem;
+            margin: 40px 0 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        .paragraph {
+            font-size: 1.18rem;
+            line-height: 2.2;
+            margin-bottom: 25px;
+            text-align: justify;
+            color: #333;
+        }
+        .list-item {
+            font-size: 1.15rem;
+            line-height: 2.0;
+            margin-bottom: 12px;
+            padding-left: 20px;
+            color: #444;
+            position: relative;
+        }
+        .quote {
+            margin: 40px 0;
+            padding: 25px 35px;
+            background-color: #F0F0EE;
+            border-left: 4px solid var(--accent-color);
+            font-style: italic;
+            font-size: 1.2rem;
+            color: #555;
+            line-height: 2;
+        }
+        strong { font-weight: bold; color: #000; }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            #reader-screen { flex-direction: column; }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border-color); }
+            #book-list { display: flex; flex-direction: row; padding: 10px; overflow-x: auto; white-space: nowrap; }
+            .menu-item { border-left: none; border-bottom: 3px solid transparent; padding: 10px 20px; display: inline-block; }
+            .menu-item.active { border-left-color: transparent; border-bottom-color: var(--accent-color); }
+            .main-content { padding: 30px 20px; }
+            .book-title { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="import-screen">
+        <div class="import-box">
+            <h1>📚 构建你的《内在探索文库》</h1>
+            <p>打开你的 <b>SBTI资源.docx</b>，全选(Ctrl+A) 并复制(Ctrl+C) 里面的所有文字，直接粘贴到下方：</p>
+            <textarea id="raw-text" placeholder="在此粘贴几十万字的文稿... (系统将自动为你排版和分章)"></textarea>
+            <br>
+            <button class="btn-import" onclick="processText()">✨ 一键生成精美阅读网站</button>
+        </div>
+    </div>
+
+    <div id="reader-screen">
+        <div class="sidebar">
+            <div class="site-title">内在探索文库</div>
+            <div id="book-list">
+                </div>
+            <div class="reset-btn" onclick="clearData()">🔄 清除缓存重新导入</div>
+        </div>
+        <div class="main-content" id="main-content">
+            <div class="book-container" id="book-container">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载时检查是否已有缓存
+        window.onload = () => {
+            const savedData = localStorage.getItem('sbti_library_data');
+            if (savedData) {
+                try {
+                    const library = JSON.parse(savedData);
+                    if (library.length > 0) renderLibrary(library);
+                } catch(e) { console.error("读取缓存失败"); }
+            }
+        };
+
+        // 核心解析引擎：将杂乱的文本变成结构化的书籍
+        function processText() {
+            const raw = document.getElementById('raw-text').value;
+            if (!raw.trim()) {
+                alert('请先粘贴你的文档内容！');
+                return;
+            }
+
+            const lines = raw.split('\n');
+            const library = [];
+            let currentBook = null;
+            let currentChapter = null;
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return; // 跳过空行
+
+                // 1. 识别书名（如：《吗喽：内在自我探索与认清之书》）
+                const bookMatch = line.match(/^《(.*?)[:：]/) || line.match(/^《(.*?)》/);
+                // 确保不是标题里套书名
+                if (bookMatch && !line.startsWith('#')) {
+                    currentBook = {
+                        id: bookMatch[1], // 提取出"吗喽"作为侧边栏名字
+                        title: line,
+                        chapters: []
+                    };
+                    library.push(currentBook);
+                    currentChapter = null;
+                    return;
+                }
+
+                if (!currentBook) return; // 忽略书名出现前的杂乱信息
+
+                // 2. 识别章节大标题（如：# 第一章：面具之下）
+                const chapMatch = line.match(/^#\s*(.*)/);
+                if (chapMatch) {
+                    currentChapter = {
+                        title: chapMatch[1],
+                        content: ''
+                    };
+                    currentBook.chapters.push(currentChapter);
+                    return;
+                }
+
+                if (!currentChapter) return; // 忽略章节出现前的杂乱信息
+
+                // 3. 识别小节标题（如：## 一、生存的智慧）
+                const subMatch = line.match(/^##+\s*(.*)/);
+                if (subMatch) {
+                    currentChapter.content += `<h3 class="section-title">${subMatch[1]}</h3>`;
+                    return;
+                }
+
+                // 4. 识别无序列表（如：- 学会保护自己）
+                const listMatch = line.match(/^[-\*]\s+(.*)/);
+                if (listMatch) {
+                    let text = listMatch[1].replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    currentChapter.content += `<div class="list-item">${text}</div>`;
+                    return;
+                }
+
+                // 5. 格式化普通段落和加粗
+                let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                currentChapter.content += `<p class="paragraph">${formattedLine}</p>`;
+            });
+
+            if (library.length === 0) {
+                alert('解析失败：请确保你粘贴的内容中包含类似《书名》和 # 第一章 这样的结构！');
+                return;
+            }
+
+            // 保存到本地并渲染
+            try {
+                localStorage.setItem('sbti_library_data', JSON.stringify(library));
+            } catch(e) {
+                console.log("文本过大无法保存缓存，但本次依然可以阅读");
+            }
+            
+            renderLibrary(library);
+        }
+
+        // 渲染界面
+        function renderLibrary(library) {
+            document.getElementById('import-screen').style.display = 'none';
+            document.getElementById('reader-screen').style.display = 'flex';
+
+            const bookList = document.getElementById('book-list');
+            bookList.innerHTML = '';
+
+            // 生成左侧目录
+            library.forEach((book, index) => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerText = book.id; // 显示如 "吗喽", "伪人"
+                div.onclick = () => showBook(library, index);
+                bookList.appendChild(div);
+            });
+
+            // 默认打开第一本书
+            if(library.length > 0) {
+                showBook(library, 0);
+            }
+        }
+
+        // 显示具体的一本书
+        function showBook(library, index) {
+            const book = library[index];
+            
+            // 目录高亮切换
+            document.querySelectorAll('.menu-item').forEach((el, i) => {
+                if (i === index) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+
+            // 拼装书本内容
+            const container = document.getElementById('book-container');
+            let html = `<div class="book-title">${book.title}</div>`;
+            
+            book.chapters.forEach(chap => {
+                html += `
+                <div class="chapter-container">
+                    <h2 class="chapter-title">${chap.title}</h2>
+                    ${chap.content}
+                </div>`;
+            });
+
+            container.innerHTML = html;
+            
+            // 滚动回顶部
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        // 清除数据
+        function clearData() {
+            if(confirm('确定要清除当前的文库数据，重新粘贴导入吗？')) {
+                localStorage.removeItem('sbti_library_data');
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
